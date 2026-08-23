@@ -70,16 +70,17 @@ project-root/
 │   │   │   ├── model/
 │   │   │   │   └── useProductDetail.ts
 │   │   │   └── index.ts
-│   │   └── (checkout)/           ← Route group (parentheses)
-│   │       ├── _layout/          ← Shared layout for sub-routes
-│   │       │   └── CheckoutLayout.vue
-│   │       ├── cart/
+│   │   └── (user-settings)/      ← Slice group: only page slices, no shared code
+│   │       ├── change-email/     ← page slice
 │   │       │   ├── ui/
+│   │       │   ├── model/
 │   │       │   └── index.ts
-│   │       └── payment/
-│   │           ├── ui/
-│   │           └── index.ts
+│   │       └── two-fa/
 │   ├── widgets/                  ← FSD widgets layer
+│   │   ├── user-settings-shell/  ← page layout / shared chrome
+│   │   │   ├── ui/
+│   │   │   ├── model/
+│   │   │   └── index.ts
 │   │   └── product-card/
 │   │       ├── ui/
 │   │       │   └── ProductCard.vue
@@ -183,9 +184,9 @@ src/pages/product-detail/
 
 ### Conventions
 
-- **Slice naming**: kebab-case matching the domain concept: `product-detail/`, `blog-article-detail/`, `user-profile/`
-- **Route groups**: Parentheses group related sub-routes: `(checkout)/cart/`, `(checkout)/payment/`
-- **Shared layout**: `_layout/` inside a route group holds layout components shared across sub-routes
+- **Slice naming**: kebab-case matching the domain concept: `product-detail/`, `blog-article-detail/`, `change-email/`
+- **Slice groups**: see the next section. Parentheses are only a folder for related page slices, e.g. `(user-settings)/change-email`.
+- **Shared chrome / page layouts**: Widgets (`src/widgets/user-settings-shell`, same idea as `wizard-shell`). Simple chrome without domain logic can live in `shared/ui` or Nuxt `app/layouts`. Never `_layout/` and never `ui/` / `model/` / `index.ts` at the group root.
 
 ### Page slice structure
 
@@ -206,6 +207,42 @@ src/pages/product-detail/
 // src/pages/product-detail/index.ts
 export { default as ProductDetailPage } from './ui/ProductDetailPage.vue'
 ```
+
+---
+
+## Slice groups
+
+Official FSD ([slice groups](https://feature-sliced.design/docs/reference/slice-groups), [slices and segments](https://feature-sliced.design/docs/reference/slices-segments#slice-groups)): a group is **only a navigation folder**. It is **not a slice**.
+
+> A slice group is not a slice. It does not have its own segments like `model`, `ui`, or `api`, nor does it have a public API such as `index.ts`. Shared code used across multiple slices should not be placed in a slice group either.
+
+> Closely related slices can be structurally grouped in a folder, but they should exercise the same isolation rules as other slices — there should be **no code sharing** in that folder.
+
+In this repo, group folders use parentheses so they are obvious: `(user-settings)`, `(company-settings)`, `(offer-detail)`, `(offer-extend)`, `(blog)`.
+
+```
+src/pages/(user-settings)/     ← group: ONLY page slices
+  change-email/                ← slice (ui/, model/, index.ts)
+  two-fa/
+
+src/widgets/user-settings-shell/   ← shared chrome (sidebar, hub, page wrapper)
+  ui/
+  model/
+  index.ts
+```
+
+**Wrong** (group pretending to be a slice):
+
+```
+src/pages/(user-settings)/
+  index.ts          ← no
+  ui/               ← no
+  model/            ← no
+  _layout/          ← no
+  change-email/
+```
+
+A folder **without** parentheses is itself a page slice and must have FSD segments under it.
 
 ---
 
@@ -368,6 +405,8 @@ New functionality needed
 ```
 
 **Rule**: Extract when you have evidence (3+ usages), not a prediction. Premature extraction creates unnecessary abstraction.
+
+Splitting a page into small **local** `ui/` parts (header, form, list, footer) is not an extraction. Do that immediately. Extraction to `widgets/` / `features/` still waits for 3+ usages. How to assemble those parts: `composition-over-configuration` skill.
 
 ---
 
@@ -602,6 +641,10 @@ Only create segments you actually need. An entity with only types needs only `mo
 **Wrong**: Organizing `app/composables/`, `app/middleware/`, or `server/` into FSD layers.
 **Right**: FSD lives exclusively in `src/`. Everything else (`app/`, `server/`) follows Nuxt conventions.
 
+### 11. Putting shared code in a slice group
+**Wrong**: `src/pages/(user-settings)/index.ts`, `ui/`, `model/`, or `_layout/` next to the page slices.
+**Right**: The group folder contains only page slices. Shared chrome is a widget (`src/widgets/user-settings-shell`). Isolated groups like `(blog)` have no chrome at all.
+
 ---
 
 ## Checklist for new code
@@ -618,6 +661,8 @@ Before writing or reviewing code, verify:
 - [ ] Is extraction proven (3+ usages) or premature?
 - [ ] Is all FSD-structured code in `src/`, not in `app/` or `server/`?
 - [ ] Does `app/` only contain Nuxt runtime concerns (thin pages, layouts, plugins, middleware)?
+- [ ] If this is a `(group)/`, does it contain only page slices (no group-root `ui/` / `model/` / `index.ts` / `_layout/`)?
+- [ ] Does shared page chrome live in `src/widgets/*-shell`, imported via that widget's public API?
 
 ---
 
