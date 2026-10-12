@@ -44,4 +44,4 @@ It activates on architecture decisions in a Nuxt project, questions about where 
 
 ## License
 
-MIT
+[MIT](LICENSE)
