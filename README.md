@@ -21,11 +21,11 @@ The [skills](https://github.com/vercel-labs/skills) CLI asks which skills to ins
 
 Answers "does this upgrade need a code change, and is it safe to merge?" for every bumped package on your branch, a Renovate or Dependabot PR, or a lockfile update. Works with npm, pnpm, Yarn and Bun, including workspaces and catalogs.
 
-- **One reviewer per package**: each reads every release note in the version range, scans the commits for unannounced fixes, checks security advisories and greps your code for every way you use the package.
-- **Lockfile aware**: follows new or changed transitive dependencies, peer ranges, duplicate copies and new install scripts.
-- **Model and effort per bump**: patch bumps get a light pass, majors, pinned packages and your core stack a deep one. The reviewer stays in the family you run on: Sonnet or Opus on Claude, Sol on GPT, the flagship on Grok, Flash or Pro on Gemini.
-- **Respects pins**: a "do not bump" comment or a Renovate/Dependabot ignore rule puts the package at the top of the report.
-- **Read-only**: reviewers change nothing; you get a verdict per package (Hold, Code change required, Change recommended, No change) and decide what to apply.
+- **One reviewer per package.** Each reads every release note in the version range, scans the commits for unannounced fixes and unreleased regressions, checks security advisories and greps your code for every way you use the package.
+- **Lockfile checks.** Each reviewer follows new or changed transitive dependencies, peer ranges, duplicate copies and new install scripts.
+- **Model and effort per bump.** Patch bumps get a light review. Majors, pinned packages and your core stack get a deep one. The reviewer stays in the family you run on: Sonnet or Opus on Claude, Sol on GPT, the flagship on Grok, Flash or Pro on Gemini.
+- **Pinned packages.** A "do not bump" comment or a Renovate or Dependabot ignore rule puts the package at the top of the report.
+- **Read-only.** Reviewers change nothing. You get a verdict per package (Hold, Code change required, Change recommended, No change) and decide what to apply.
 
 ### nuxt-fsd
 
