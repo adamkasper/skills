@@ -16,6 +16,7 @@ The [skills](https://github.com/vercel-labs/skills) CLI asks which skills to ins
 |-------|-------------|
 | [dependency-changelog-review](skills/dependency-changelog-review) | Reviews JS/TS dependency bumps: one read-only subagent per package reads every release in the range, checks your usage and lockfile, and returns a verdict |
 | [nuxt-fsd](skills/nuxt-fsd) | [Feature-Sliced Design](https://feature-sliced.design/) architecture for [Nuxt 4+](https://nuxt.com/) projects |
+| [split-pr](skills/split-pr) | Splits a large change, branch or PR/MR into small reviewable GitHub PRs or GitLab MRs along CODEOWNERS lines, without touching your checkout |
 
 ### dependency-changelog-review
 
@@ -41,6 +42,17 @@ Teaches AI coding agents how to structure Nuxt 4+ projects using Feature-Sliced 
 - **Migration guide**: Adopting FSD in existing Nuxt projects
 
 It activates on architecture decisions in a Nuxt project, questions about where to place new code, creating pages, features, entities or widgets, mentions of FSD, layers or slices, cross-module imports, and code extraction.
+
+### split-pr
+
+Turns one large change into a few small pull requests (GitHub, via `gh`) or merge requests (GitLab, via `glab`) that reviewers can take one at a time. It starts from uncommitted work (even on the default branch), the current branch, or an open PR/MR.
+
+- **Backup first.** Everything, untracked files included, goes into a `refs/backup/pre-split-*` ref before anything moves.
+- **Reviewer-aligned slices.** It reads CODEOWNERS with each platform's rules, GitLab sections included, so every slice pulls in as few owner groups as possible. Tests stay with their code, and compatibility shims go into the earlier slice so each slice merges on its own.
+- **Independent unless it must stack.** Slices branch off the base, and stack only on a real code dependency. A file that belongs to two slices is split by hunk.
+- **Your checkout stays put.** Each slice is built in a temporary worktree. Your branch, index and working tree stay exactly as they were.
+- **Verified before pushing.** The slices must add up to the original, with no hunk dropped or duplicated.
+- **Asks first.** Nothing is committed, pushed or opened until you approve the plan. PRs/MRs open as drafts, each body links the rest of the split, and the original author is credited when you split someone else's PR.
 
 ## License
 
