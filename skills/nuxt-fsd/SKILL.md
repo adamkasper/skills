@@ -353,7 +353,6 @@ Every slice **must** expose an `index.ts`. External code imports only from `inde
 // src/features/auth/index.ts
 export { default as LoginForm } from './ui/LoginForm.vue'
 export { useAuth } from './model/useAuth'
-export { useProvideAuth } from './model/useAuth'
 export type { AuthUser, AuthCredentials } from './model/types'
 ```
 

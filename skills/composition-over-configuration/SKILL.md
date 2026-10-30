@@ -62,7 +62,7 @@ Leave out optional parts only. Parts that accessibility needs stay: a dialog wit
 
 Inputs work the same way: `InputGroup` + `InputGroupInput` + `InputGroupAddon`, not `<TextField :has-icon :has-prefix :has-error />`.
 
-Parts used only next to where they live are imported directly by relative path. Parts that code outside that folder uses are exported together from the folder's public entry point (`index.ts`), and nothing else from that folder is imported directly. Callers assemble them where they're used.
+Parts used only inside the module that owns them are imported by relative path. Parts that outside code uses are exported from that module's top-level public entry point (its `index.ts`), and outside code imports only from there. Don't add nested barrel files just to group a component's parts. Callers assemble the parts where they're used.
 
 ### Slot or part?
 

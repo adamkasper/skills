@@ -27,7 +27,7 @@ Keeps new Vue components from turning into one component with a dozen `showX` pr
 - **Compound parts.** Dialogs, inputs and composers are built from a root and parts, the way Reka UI and shadcn-vue do it. A slot is for free content in one spot, and an exported part is for pieces with their own props or shared state.
 - **Shared state in the root.** Parts get state from `createInjectionState` with an `OrThrow` consumer instead of prop drilling, so a variant swaps what the root provides and reuses every part.
 - **Pages and layouts too.** Optional chrome is a wrapper or sibling component. Responsive variants of one tree hide with CSS instead of `v-if` copies that break hydration.
-- **Presets, not flags.** An assembly repeated three or more times becomes a named preset, and a new variant gets its own preset.
+- **Presets, not flags.** An assembly can become a named preset whenever that reads better, and always does once it repeats three or more times. A new variant gets its own preset.
 - **New UI only.** It leaves existing kitchen-sink components alone unless you ask.
 
 ### dependency-changelog-review
