@@ -58,6 +58,8 @@ Follow the compound components the project already has: Reka UI, shadcn-vue, or 
 
 A dialog opened from code omits `DialogTrigger`. Don't add `:show-trigger`.
 
+Leave out optional parts only. Parts that accessibility needs stay: a dialog without a visible title still renders `DialogTitle` inside `VisuallyHidden`, and Reka warns in the console when it's missing.
+
 Inputs work the same way: `InputGroup` + `InputGroupInput` + `InputGroupAddon`, not `<TextField :has-icon :has-prefix :has-error />`.
 
 Export a component's parts together from one entry point (the folder's or slice's `index.ts`) and assemble them where they're used.
@@ -67,21 +69,22 @@ Export a component's parts together from one entry point (the folder's or slice'
 - **Slot:** free content in one spot of one component, like a dialog body.
 - **Exported part:** the piece has its own props, moves around between variants, or shares state with its siblings.
 
-If you're writing `v-if="$slots.footer"` to render a footer wrapper, the footer is a part.
+A `v-if="$slots.footer"` around a footer wrapper is fine. Once the footer needs its own props or differs between callers, make it a part.
 
 ## Shared state: a root and its parts
 
-When parts share state, the root provides it and each part injects it. Don't pass the same props through every part. Use `createInjectionState` from `@vueuse/core` and export an `OrThrow` consumer, so a part rendered outside its root fails loudly instead of silently getting `undefined`.
+When parts share state, the root provides it and each part injects it. Don't pass the same props through every part. Use `createInjectionState` from `@vueuse/core` and export an `OrThrow` consumer, so a part rendered outside its root fails loudly instead of silently getting `undefined`. Each root instance owns its state. Parts get readonly state and change it through actions.
 
 ```ts
 import { createInjectionState } from '@vueuse/core'
-import { ref } from 'vue'
+import { readonly, shallowRef } from 'vue'
 
 const [provideComposer, injectComposer] = createInjectionState(
   (initial: string, onSubmit: (text: string) => Promise<void>) => {
-    const draft = ref(initial)
+    const draft = shallowRef(initial)
+    const setDraft = (text: string) => { draft.value = text }
     const submit = () => onSubmit(draft.value)
-    return { draft, submit }
+    return { draft: readonly(draft), setDraft, submit }
   },
 )
 
@@ -95,7 +98,9 @@ export function useComposerOrThrow() {
 }
 ```
 
-`ComposerRoot` calls `provideComposer(...)` and renders `<slot />`. `ComposerInput` and `ComposerSubmit` call `useComposerOrThrow()`.
+`ComposerRoot` calls `provideComposer(...)` in setup and renders `<slot />`. `ComposerInput` binds `:model-value="draft"` and `@update:model-value="setDraft"`, and `ComposerSubmit` calls `submit`. Both get them from `useComposerOrThrow()`.
+
+When your parts wrap Reka parts, read Reka's own state through its context (`injectDialogRootContext()` and similar) instead of copying `open` into a second provider.
 
 What this buys you:
 
@@ -145,6 +150,7 @@ Parts start next to the one place that uses them. Splitting a component into loc
 - [ ] No config array describing children the parent could render directly
 - [ ] The parent template leaves out the parts it doesn't need
 - [ ] Optional chrome is a sibling or wrapper component, not a flag on a mega-component
-- [ ] Parts that share state get it from a root through an `OrThrow` consumer
+- [ ] Accessibility parts like `DialogTitle` are still rendered, visually hidden if needed
+- [ ] Parts that share state get readonly state and actions from a root through an `OrThrow` consumer
 - [ ] Visual variants (`variant`, `size`) are still plain props
 - [ ] Existing kitchen-sink components are untouched unless the user asked
