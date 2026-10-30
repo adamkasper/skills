@@ -14,9 +14,21 @@ The [skills](https://github.com/vercel-labs/skills) CLI asks which skills to ins
 
 | Skill | Description |
 |-------|-------------|
+| [composition-over-configuration](skills/composition-over-configuration) | Builds Vue UI from small composable parts instead of one component with `showX` flags and config props |
 | [dependency-changelog-review](skills/dependency-changelog-review) | Reviews JS/TS dependency bumps: one read-only subagent per package reads every release in the range, checks your usage and lockfile, and returns a verdict |
 | [nuxt-fsd](skills/nuxt-fsd) | [Feature-Sliced Design](https://feature-sliced.design/) architecture for [Nuxt 4+](https://nuxt.com/) projects |
 | [split-pr](skills/split-pr) | Splits a large change, branch or PR/MR into small reviewable GitHub PRs or GitLab MRs along CODEOWNERS lines, without touching your checkout |
+
+### composition-over-configuration
+
+Keeps new Vue components from turning into one component with a dozen `showX` props. Based on the talk [Composition Is All You Need](https://www.youtube.com/watch?v=4KvbVq3Eg5w).
+
+- **Structure vs. value props.** A prop that only decides whether a child renders gets deleted, and the parent renders the child or leaves it out. `variant`, `size`, `disabled` and data props stay props.
+- **Compound parts.** Dialogs, inputs and composers are built from a root and parts, the way Reka UI and shadcn-vue do it. A slot is for free content in one spot, and an exported part is for pieces with their own props or shared state.
+- **Shared state in the root.** Parts get state from `createInjectionState` with an `OrThrow` consumer instead of prop drilling, so a variant swaps what the root provides and reuses every part.
+- **Pages and layouts too.** Optional chrome is a wrapper or sibling component. Responsive variants of one tree hide with CSS instead of `v-if` copies that break hydration.
+- **Presets, not flags.** An assembly repeated three or more times becomes a named preset, and a new variant gets its own preset.
+- **New UI only.** It leaves existing kitchen-sink components alone unless you ask.
 
 ### dependency-changelog-review
 
