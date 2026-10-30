@@ -62,7 +62,7 @@ Leave out optional parts only. Parts that accessibility needs stay: a dialog wit
 
 Inputs work the same way: `InputGroup` + `InputGroupInput` + `InputGroupAddon`, not `<TextField :has-icon :has-prefix :has-error />`.
 
-Export a component's parts together from one entry point (the folder's or slice's `index.ts`) and assemble them where they're used.
+Parts used only next to where they live are imported directly by relative path. Parts that code outside that folder uses are exported together from the folder's public entry point (`index.ts`), and nothing else from that folder is imported directly. Callers assemble them where they're used.
 
 ### Slot or part?
 
@@ -73,14 +73,19 @@ A `v-if="$slots.footer"` around a footer wrapper is fine. Once the footer needs 
 
 ## Shared state: a root and its parts
 
-When parts share state, the root provides it and each part injects it. Don't pass the same props through every part. Use `createInjectionState` from `@vueuse/core` and export an `OrThrow` consumer, so a part rendered outside its root fails loudly instead of silently getting `undefined`. Each root instance owns its state. Parts get readonly state and change it through actions.
+A direct parent-child contract stays props down, events up. When several parts share state and the components between them would only relay it, the root provides it and each part injects it. Use `createInjectionState` from `@vueuse/core` and export an `OrThrow` consumer, so a part rendered outside its root fails loudly instead of silently getting `undefined`. Each root instance owns its state. Parts get readonly state and change it through actions.
 
 ```ts
 import { createInjectionState } from '@vueuse/core'
 import { readonly, shallowRef } from 'vue'
 
-const [provideComposer, injectComposer] = createInjectionState(
-  (initial: string, onSubmit: (text: string) => Promise<void>) => {
+interface ComposerOptions {
+  initial: string
+  onSubmit: (text: string) => Promise<void>
+}
+
+const [useProvideComposer, useComposer] = createInjectionState(
+  ({ initial, onSubmit }: ComposerOptions) => {
     const draft = shallowRef(initial)
     const setDraft = (text: string) => { draft.value = text }
     const submit = () => onSubmit(draft.value)
@@ -88,24 +93,24 @@ const [provideComposer, injectComposer] = createInjectionState(
   },
 )
 
-export { provideComposer }
+export { useProvideComposer }
 
 export function useComposerOrThrow() {
-  const state = injectComposer()
+  const state = useComposer()
   if (!state)
     throw new Error('Composer parts must be rendered inside <ComposerRoot>')
   return state
 }
 ```
 
-`ComposerRoot` calls `provideComposer(...)` in setup and renders `<slot />`. `ComposerInput` binds `:model-value="draft"` and `@update:model-value="setDraft"`, and `ComposerSubmit` calls `submit`. Both get them from `useComposerOrThrow()`.
+The state lives in its own composable file next to the parts (`useComposer.ts`), not inside the root component. `ComposerRoot` calls `useProvideComposer(...)` in setup and renders `<slot />`. `ComposerInput` binds `:model-value="draft"` and `@update:model-value="setDraft"`, and `ComposerSubmit` calls `submit`. Both get them from `useComposerOrThrow()`, called in setup.
 
 When your parts wrap Reka parts, read Reka's own state through its context (`injectDialogRootContext()` and similar) instead of copying `open` into a second provider.
 
 What this buys you:
 
 - A part outside the visual frame, like a send button in a header, reads the same state as long as it renders inside the root.
-- Variants change what the root provides, not the parts. A new-message root and an edit root pass different sources into `provideComposer(...)` and share every part.
+- Variants change what the root provides, not the parts. A new-message root and an edit root pass different sources into `useProvideComposer(...)` and share every part.
 
 Flow state (a wizard `step`, the active tab) is state, not structure. It lives in the root or in `v-model`. Don't turn each step into a `showStepX` flag, and don't confuse it with chrome flags like `showSidebar`.
 
@@ -136,13 +141,15 @@ The `v-if` moved to the place that knows why the link is there. A guest flow wit
 
 When desktop and mobile share one child tree (one `<NuxtPage>` or `<RouterView>`), hide chrome with CSS (`max-md:hidden`). Don't `v-if` two copies of the tree behind `isMobile`: switching remounts the children and drops their state, and with SSR the server can't know the viewport, so hydration breaks.
 
+When desktop and mobile really need different trees, render both and hide one with CSS, or wrap the client-only one in `<ClientOnly>` in Nuxt. Never branch on `window` or a viewport composable in a template that renders on the server.
+
 ## Presets for repeated assemblies
 
-When the same assembly shows up three or more times, wrap it in a named preset built from the parts (`ConfirmDialog`, `SearchInput`). A different variant gets its own preset. Don't add a flag to the first one. Keep the parts exported so a one-off can still assemble its own.
+A preset is a named component built from the parts (`ConfirmDialog`, `SearchInput`). Make one when it makes callers easier to read, even for a single use, and always once the same assembly shows up three or more times. A different variant gets its own preset. Don't add a flag to the first one. Keep the parts exported so a one-off can still assemble its own.
 
 ## Where parts live
 
-Parts start next to the one place that uses them. Splitting a component into local parts is not an extraction, so do it right away. Moving parts to a shared location waits for real reuse (in Feature-Sliced Design projects, three or more usages; see the `nuxt-fsd` skill).
+Parts start next to the one place that uses them. Split a component into local parts when a part has its own responsibility: own props, own state or its own place in the variants. A small component that changes as one unit stays one SFC. Moving parts to a shared location waits for proven reuse in three or more places. Until then, two copies are fine.
 
 ## Self-check
 
@@ -151,6 +158,8 @@ Parts start next to the one place that uses them. Splitting a component into loc
 - [ ] The parent template leaves out the parts it doesn't need
 - [ ] Optional chrome is a sibling or wrapper component, not a flag on a mega-component
 - [ ] Accessibility parts like `DialogTitle` are still rendered, visually hidden if needed
+- [ ] Direct parent-child contracts use props and events, not injection
 - [ ] Parts that share state get readonly state and actions from a root through an `OrThrow` consumer
+- [ ] No template branches on `window` or viewport during SSR
 - [ ] Visual variants (`variant`, `size`) are still plain props
 - [ ] Existing kitchen-sink components are untouched unless the user asked

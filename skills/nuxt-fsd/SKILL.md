@@ -406,7 +406,7 @@ New functionality needed
 
 **Rule**: Extract when you have evidence (3+ usages), not a prediction. Premature extraction creates unnecessary abstraction.
 
-Splitting a page into small **local** `ui/` parts (header, form, list, footer) is not an extraction. Do that immediately. Extraction to `widgets/` / `features/` still waits for 3+ usages. How to assemble those parts: `composition-over-configuration` skill.
+Splitting a page into small **local** `ui/` parts (header, form, list, footer) is not an extraction, so it doesn't wait for 3+ usages. Split when a part has its own responsibility (own props, own state, its own place in the variants). A small component that changes as one unit stays one file. Extraction to `widgets/` / `features/` still waits for 3+ usages. How to assemble those parts: `composition-over-configuration` skill.
 
 ---
 
@@ -470,22 +470,24 @@ All state lives in the `model/` segment of the relevant slice:
 
 ### Provider/Inject pattern
 
-Use `createInjectionState` from `@vueuse/core` for scoped state. Always export a throwing variant so consumers get a clear error if the provider is missing:
+Use `createInjectionState` from `@vueuse/core` for scoped state. Always export an `OrThrow` variant so consumers get a clear error if the provider is missing. Each provider instance owns its state, and consumers get readonly state plus actions:
 
 ```ts
-// src/features/auth/model/useAuth.ts
+// src/features/cart/model/useCart.ts
 import { createInjectionState } from '@vueuse/core'
+import { readonly, shallowRef } from 'vue'
 
-const [useProvideAuth, useAuthRaw] = createInjectionState(() => {
-  const user = ref<User | null>(null)
-  return { user }
+const [useProvideCart, useCart] = createInjectionState(() => {
+  const items = shallowRef<readonly CartItem[]>([])
+  const add = (item: CartItem) => { items.value = [...items.value, item] }
+  return { items: readonly(items), add }
 })
 
-export { useProvideAuth }
+export { useProvideCart }
 
-export function useAuth() {
-  const state = useAuthRaw()
-  if (!state) throw new Error('useAuth must be used within AuthProvider')
+export function useCartOrThrow() {
+  const state = useCart()
+  if (!state) throw new Error('useCartOrThrow must be used inside a cart provider')
   return state
 }
 ```
