@@ -31,7 +31,7 @@ Every seat gets one brief, word for word. Seats see none of this conversation, s
 **Both modes:**
 
 - **Context.** Repo path, the files and docs worth reading (paths, not pasted dumps, unless the seat could not reach them), the project rules file (`AGENTS.md`, `CLAUDE.md`), what is already ruled out and why.
-- **Rules.** Read-only: edit no file, commit nothing, install nothing, start no subagents, ask no questions. Work it out and answer.
+- **Rules.** Read-only: edit no file, commit nothing, install nothing, start no subagents, ask no questions. Work it out and answer. Answer in English, whatever language the user or your own settings use. Seats inherit their harness's language settings, and a seat that answers in another language is easy to spot in round 2.
 
 **Decide mode:**
 
