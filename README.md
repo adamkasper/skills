@@ -18,7 +18,7 @@ The [skills](https://github.com/vercel-labs/skills) CLI asks which skills to ins
 | [dependency-changelog-review](skills/dependency-changelog-review) | Reviews JS/TS dependency bumps: one read-only subagent per package reads every release in the range, checks your usage and lockfile, and returns a verdict |
 | [nuxt-fsd](skills/nuxt-fsd) | [Feature-Sliced Design](https://feature-sliced.design/) architecture for [Nuxt 4+](https://nuxt.com/) projects |
 | [split-pr](skills/split-pr) | Splits a large change, branch or PR/MR into small reviewable GitHub PRs or GitLab MRs along CODEOWNERS lines, without touching your checkout |
-| [t3-council](skills/t3-council) | **[T3 Code](https://t3.codes) only.** A council of models from different vendors (Claude, GPT, Gemini, Grok, Kimi, …) proposes an approach, reviews each other blind, and you get one recommendation with the dissent kept |
+| [t3-council](skills/t3-council) | **[T3 Code](https://t3.codes) only.** A council of models from different vendors (Claude, GPT, Gemini, Grok, Kimi, …) plans an approach or reviews a change, checks each other blind, and you get one recommendation or a cross-verified list of findings |
 
 ### composition-over-configuration
 
@@ -69,14 +69,15 @@ Turns one large change into a few small pull requests (GitHub, via `gh`) or merg
 
 ### t3-council
 
-Asks several AI vendors the same hard question and turns their answers into one recommendation. It needs [T3 Code](https://t3.codes), because it starts the seats through T3's `delegate_task`, which can run Claude, Codex, Cursor, Grok and other providers side by side. Other agents can't reach models outside their own vendor this way, so the skill stops there.
+Asks several AI vendors the same hard question, or has them review the same change, and turns their answers into one result. It needs [T3 Code](https://t3.codes), because it starts the seats through T3's `delegate_task`, which can run Claude, Codex, Cursor, Grok and other providers side by side. Other agents can't reach models outside their own vendor this way, so the skill stops there.
 
+- **Two modes.** Decide mode is for planning: an approach, architecture, a plan, a root-cause hypothesis or a trade-off. Review mode is for a diff, branch, PR/MR or plan document.
 - **Best model per vendor.** It reads which T3 providers are enabled, groups their models by vendor (Cursor alone brings Gemini, Kimi, GLM and DeepSeek) and seats the strongest model of each, through the vendor's own harness when there is one. It names the vendors a disabled provider leaves out.
 - **Independent first.** Every seat gets the same brief and answers without knowing who else sits on the council.
-- **Blind peer review.** Each seat ranks the anonymized proposals, names the best idea and the worst flaw of each, and revises its own recommendation.
-- **Chair, not vote.** Your agent checks the claims against the code, runs at most one extra round on a disagreement that matters, and decides on the criteria set up front.
-- **Report.** Recommendation, roster, consensus, disagreements and how they were settled, the strongest dissent, and the ranking mapped back to models.
-- **Read-only.** Seats change nothing. The council recommends and you decide.
+- **Blind cross-check.** In decide mode, each seat ranks the anonymized proposals and revises its own. In review mode, findings are merged and anonymized, and each seat confirms or refutes every one against the code. It doesn't see how many seats raised a finding, so the check doesn't turn into a vote.
+- **Chair, not vote.** Your agent checks the claims against the code, runs at most one extra round on a disagreement that matters, and decides.
+- **Report.** Decide mode gives a recommendation, consensus, disagreements, the strongest dissent and the ranking mapped back to models. Review mode gives a verdict and the findings sorted into fix, consider and dismissed, each with the models that raised and confirmed it.
+- **Read-only.** Seats change nothing. The council recommends or reports, and you decide.
 
 ## License
 
