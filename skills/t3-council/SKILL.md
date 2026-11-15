@@ -1,6 +1,6 @@
 ---
 name: t3-council
-description: Runs a council of AI agents from different vendors inside T3 Code (Claude, GPT, Gemini, Grok, Kimi, GLM, DeepSeek, …). It picks the strongest available model from each vendor across every enabled T3 provider and has them work independently, then check each other blind. It has two modes. Decide mode handles planning, such as an approach, design, architecture, a plan, root-cause hypotheses or a trade-off, and it ends in one recommendation with the dissent kept. Review mode handles a diff, branch, PR/MR or plan document, and it ends in a cross-verified list of findings to fix, consider or dismiss. Use it whenever the user, working in T3 Code, wants several models or providers to weigh in, debate, agree or review together. Typical asks are "council", "consortium", "ask several models", "second opinion from Gemini/GPT", "cross-provider review", "let the models argue it out", and the Czech "napříč providery" or "ať se domluví". Only inside T3 Code. Not for quick factual questions.
+description: Runs a council of AI agents from different vendors inside T3 Code (Claude, GPT, Gemini, Grok, Kimi, GLM, DeepSeek, …). It picks the strongest available model from each vendor across every enabled T3 provider and has them work independently, then check each other blind. It has two modes. Decide mode handles planning, such as an approach, design, architecture, a plan, root-cause hypotheses or a trade-off, and it ends in one recommendation with the dissent kept. Review mode handles a diff, branch, PR/MR or plan document, and it ends in a cross-verified list of findings to fix, consider or dismiss. When the user asks, review mode also fixes the findings and reviews again until the seats are satisfied. Use it whenever the user, working in T3 Code, wants several models or providers to weigh in, debate, agree or review together. Typical asks are "council", "consortium", "ask several models", "second opinion from Gemini/GPT", "cross-provider review", "let the models argue it out", and the Czech "napříč providery" or "ať se domluví". Only inside T3 Code. Not for quick factual questions.
 ---
 
 # T3 council
@@ -24,6 +24,8 @@ The council needs the T3 tools `orchestrator_capabilities` and `delegate_task`, 
 
 If the task is trivial (a lookup, a one-line diff, a fix with an obvious answer), say a council is overkill and answer directly. Each seat is a full agent run, twice.
 
+Before a review, fix the defects you already know about, answer the open review threads on the PR/MR and run the project's checks. Seats then review the current code and don't spend a round on problems you already know. Skip this when the user wants to drop the implementation and explore other ideas.
+
 ## 1. Write the brief
 
 Every seat gets one brief, word for word. Seats see none of this conversation, so the brief is all they know.
@@ -44,7 +46,7 @@ Every seat gets one brief, word for word. Seats see none of this conversation, s
 - **Intent.** One paragraph on what the change is meant to do, from the user's words, commit messages, the PR/MR description and the code. If you can't tell, ask the user before spawning, because a reviewer who guesses the intent reports the wrong things.
 - **Target.** How a seat gets the change itself: the exact command (`git diff <base>...HEAD`, plus `git diff` when uncommitted work counts), the PR/MR number and the CLI to read it, or the plan file's path. Seats run in the shared checkout, so they see the working tree as it is.
 - **Rubric.** Correctness, security, breaking changes, data loss, concurrency, error handling, and violations of the project rules file. No style nits unless the rules file asks for them.
-- **Answer shape.** At most ~10 findings, most severe first. Each one: `path:line`, severity (`blocker`, `major`, `minor`), the defect in one sentence, a concrete failure scenario (input or state, then the wrong outcome) and the evidence. End with "no findings" if there are none. A finding without a failure scenario is an opinion. Leave it out.
+- **Answer shape.** At most ~10 findings, most severe first. Each one: `path:line`, severity (`blocker`, `major`, `minor`), the defect in one sentence, a concrete failure scenario (input or state, then the wrong outcome) and the evidence. End with "no findings" if there are none. A finding without a failure scenario is an opinion. Leave it out. Close with a score out of 10 for the change as it stands, where 10 means merge it as is.
 
 If the task is ambiguous enough that seats would answer different questions, ask the user before spawning.
 
@@ -72,7 +74,7 @@ Start every seat in one message, one `delegate_task` each:
 - `role`: `"design"` in decide mode (`"research"` for a root-cause question), `"review"` in review mode. Also `mode: "async"` and a `title` such as `council r1 · Gemini`.
 - `isolation`: leave the default `shared` so seats read the current checkout, uncommitted work included. Read-only is enforced only by the brief. Narrow runtime modes pause for approval rather than block writes, so don't use them. Use `"worktree"` only when seats must build a prototype. A worktree starts from the last commit, so uncommitted changes are missing there, and the brief has to say so.
 
-Don't poll. Follow each result's `next` and wait for the completion notices, then read each `summary`. A seat that errors or returns nothing drops out. Report it and carry on with the rest, and don't swap in another vendor unasked. With fewer than 2 answers left, stop and report, because there is nothing to compare.
+Don't poll. Follow each result's `next` and wait for the completion notices, then read each `summary`. Don't sit idle while the rest run: as each result arrives, check its claims against the code and note what you would fix. Edit no file while any seat still reads the same checkout. A seat the user marks as non-blocking doesn't hold up round 2. When its answer arrives late, treat it as extra feedback and record no score for it. A seat that errors or returns nothing drops out. Report it and carry on with the rest, and don't swap in another vendor unasked. With fewer than 2 answers left, stop and report, because there is nothing to compare.
 
 ## 4. Round 2: blind cross-check
 
@@ -138,6 +140,30 @@ Answer in the user's language.
 3. **Fix.** A table: `path:line`, severity, the defect, the failure scenario, raised by (models), round-2 checks (confirmed / refuted / unsure).
 4. **Consider.** Same table, with why it isn't a Fix.
 5. **Dismissed.** One line each with the reason, so the user sees nothing was lost.
-6. **Open questions.** Intent or product decisions only the user can make.
+6. **Scores.** Each seat's score out of 10 per pass. Write `no score` where a seat gave none, never an invented one.
+7. **Open questions.** Intent or product decisions only the user can make.
 
 Link each seat's thread with the `link` from its `delegate_task` result. Don't paste raw answers. Change nothing in the repo unless the user asks. The council recommends or reports, and the user decides what to apply.
+
+When a review ends in a PR/MR, also put the scores in its description, before the closing model or signature line and before any checklist the template keeps last. Edit the description, don't post a comment:
+
+```markdown
+## Council review
+
+Passes: 2
+
+| Seat | Pass 1 | Pass 2 |
+| --- | --- | --- |
+| Claude Opus | 7/10 | 9/10 |
+| GPT Sol | 8/10 | 10/10 |
+| Gemini Pro | 7/10 | 9/10 |
+```
+
+## 7. Fix and review again (only when asked)
+
+Run this only when the user asks the council to fix what it finds, for example "council and fix it" or "until they're satisfied". Otherwise stop at the report.
+
+1. **Fix.** Apply the Fix list yourself, never through a seat. Run the project's checks.
+2. **Hold the scope.** Review loops grow a change one cheap fix at a time. Fix real defects in the intended case. Move the rest to Consider with a reason and list them as follow-ups: tests nobody needs, guards for edge cases that don't matter, extra compatibility, small performance costs. Prefer the fix that deletes or narrows code.
+3. **New pass.** Start round 1 again with a fresh `delegate_task` per seat, same model and effort. The target is the changes since the last pass plus the open findings, and the brief lists the last pass's findings with what you did about each. Then round 2 and step 5 as before.
+4. **Stop** when no Fix item is left and every seat scores 9 or more, or after 3 passes. Allow up to 5 only while a blocker on security, auth, data loss or concurrency stays open with evidence, or when the user asks. Report what is still open and stop there.
