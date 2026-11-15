@@ -19,6 +19,7 @@ The [skills](https://github.com/vercel-labs/skills) CLI asks which skills to ins
 | [nuxt-fsd](skills/nuxt-fsd) | [Feature-Sliced Design](https://feature-sliced.design/) architecture for [Nuxt 4+](https://nuxt.com/) projects |
 | [split-pr](skills/split-pr) | Splits a large change, branch or PR/MR into small reviewable GitHub PRs or GitLab MRs along CODEOWNERS lines, without touching your checkout |
 | [t3-council](skills/t3-council) | **[T3 Code](https://t3.codes) only.** A council of models from different vendors (Claude, GPT, Gemini, Grok, Kimi, …) plans an approach or reviews a change, checks each other blind, and you get one recommendation or a cross-verified list of findings |
+| [unslop-comments](skills/unslop-comments) | Deletes code comments that restate the code or narrate the change, removes suppressions that hide bugs, and rewrites the few that stay into one plain sentence that says why |
 
 ### composition-over-configuration
 
@@ -78,6 +79,18 @@ Asks several AI vendors the same hard question, or has them review the same chan
 - **Chair, not vote.** Your agent checks the claims against the code, runs at most one extra round on a disagreement that matters, and decides.
 - **Report.** Decide mode gives a recommendation, consensus, disagreements, the strongest dissent and the ranking mapped back to models. Review mode gives a verdict and the findings sorted into fix, consider and dismissed, each with the models that raised and confirmed it.
 - **Read-only.** Seats change nothing. The council recommends or reports, and you decide.
+- **Fix loop on request.** Ask it to fix, and your agent applies the confirmed findings and runs a fresh pass, at most 3, while keeping the change at its intended size. Each seat scores every pass out of 10, and the scores land in the PR/MR description.
+
+### unslop-comments
+
+Cleans the comments in a diff before review. Agents leave comments that repeat the next line, tell the story of the change, or excuse a workaround, and those go stale faster than the code.
+
+- **Delete by default.** Comments that say what the code does, narrate history, mark sections, or keep commented-out code go. When unsure, the comment goes.
+- **Keep only what code can't say.** License headers, constraints from browsers, vendors or protocols, issue links, tool directives, PHPDoc generics and public API docs stay.
+- **Rewrite what stays.** One plain sentence that says why, without AI vocabulary, hedging or em dashes.
+- **Suppressions.** `eslint-disable`, `@ts-expect-error` and `@phpstan-ignore` that hide real bugs are removed and the code fixed when the fix is small. Style-only ones get a reason.
+- **Flags, not refactors.** Code that needed a comment to make sense gets a flag for a rename, extract or type. The only code edits are small renames, named constants and dead code behind a deleted comment.
+- **Fresh eyes.** If the agent wrote the code itself, a fresh subagent reviews the comments, because the author is the last to see its own slop.
 
 ## License
 
