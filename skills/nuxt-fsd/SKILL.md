@@ -50,77 +50,13 @@ shared     ← Framework utilities, UI kit, API client, helpers — zero busines
 
 ```
 project-root/
-├── app/                          ← Nuxt 4 app directory (runtime shell, NOT FSD)
-│   ├── app.vue                   ← Root component
-│   ├── pages/                    ← Thin routing shells (see "Thin page pattern")
-│   │   ├── index.vue
-│   │   └── products/
-│   │       ├── index.vue
-│   │       └── [id].vue
-│   ├── layouts/                  ← Nuxt layouts
-│   │   └── default.vue
-│   ├── plugins/                  ← Nuxt plugins
-│   ├── middleware/               ← Nuxt route middleware
-│   └── composables/              ← Nuxt global composables
-├── src/                          ← FSD root — all sliced layers live here
-│   ├── pages/                    ← FSD page slices (full implementations)
-│   │   ├── product-detail/
-│   │   │   ├── ui/
-│   │   │   │   └── ProductDetailPage.vue
-│   │   │   ├── model/
-│   │   │   │   └── useProductDetail.ts
-│   │   │   └── index.ts
-│   │   └── (user-settings)/      ← Slice group: only page slices, no shared code
-│   │       ├── change-email/     ← page slice
-│   │       │   ├── ui/
-│   │       │   ├── model/
-│   │       │   └── index.ts
-│   │       └── two-fa/
-│   ├── widgets/                  ← FSD widgets layer
-│   │   ├── user-settings-shell/  ← page layout / shared chrome
-│   │   │   ├── ui/
-│   │   │   ├── model/
-│   │   │   └── index.ts
-│   │   └── product-card/
-│   │       ├── ui/
-│   │       │   └── ProductCard.vue
-│   │       ├── model/
-│   │       │   └── useProductCard.ts
-│   │       └── index.ts
-│   ├── features/                 ← FSD features layer
-│   │   └── add-to-cart/
-│   │       ├── ui/
-│   │       │   └── AddToCartButton.vue
-│   │       ├── model/
-│   │       │   └── useAddToCart.ts
-│   │       ├── api/
-│   │       │   └── mutations.ts
-│   │       └── index.ts
-│   ├── entities/                 ← FSD entities layer
-│   │   └── product/
-│   │       ├── ui/
-│   │       │   └── ProductPreview.vue
-│   │       ├── model/
-│   │       │   ├── types.ts
-│   │       │   └── schema.ts
-│   │       ├── api/
-│   │       │   └── queries.ts
-│   │       └── index.ts
-│   └── shared/                   ← FSD shared layer
-│       ├── ui/
-│       │   ├── UiButton.vue
-│       │   └── UiModal.vue
-│       ├── lib/
-│       │   ├── format-date.ts
-│       │   └── cn.ts
-│       ├── api/
-│       │   └── client.ts
-│       └── config/
-│           └── constants.ts
-├── server/                       ← Nuxt server routes (outside FSD client layers)
-├── public/                       ← Static assets
+├── app/          ← Nuxt runtime shell, NOT FSD (thin pages, layouts, plugins, middleware, composables)
+├── src/          ← FSD root: pages/, widgets/, features/, entities/, shared/
+├── server/       ← Nuxt server routes, outside FSD
 └── nuxt.config.ts
 ```
+
+The full tree with example slices, the TypeScript includes `src/` needs, optional path aliases, the segments of the `shared` layer and the migration plan for an existing project are in [references/project-setup.md](references/project-setup.md). Read it when you set up or reconfigure a project.
 
 ### Key mapping rules
 
@@ -260,62 +196,13 @@ import { UiButton } from '~~/src/shared/ui'
 import { ProductDetailPage } from '~~/src/pages/product-detail'
 ```
 
-### Alternative: custom path aliases
-
-You can optionally configure shorter aliases in `nuxt.config.ts`:
-
-```ts
-// nuxt.config.ts
-export default defineNuxtConfig({
-  alias: {
-    '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
-    '@entities': fileURLToPath(new URL('./src/entities', import.meta.url)),
-    '@features': fileURLToPath(new URL('./src/features', import.meta.url)),
-    '@widgets': fileURLToPath(new URL('./src/widgets', import.meta.url)),
-  },
-})
-```
-
-Then use: `import { UiButton } from '@shared/ui'`. Both patterns are valid — `~~/src/` requires no config, aliases are shorter.
+You can also configure shorter aliases such as `@shared` in `nuxt.config.ts`, see [references/project-setup.md](references/project-setup.md). Both patterns are valid.
 
 **Important**: Do NOT rely on Nuxt auto-imports for cross-layer dependencies. Always use explicit imports through the slice's public API (`index.ts`). This keeps dependencies visible and enforceable.
-
-```ts
-// CORRECT — explicit import via public API
-import { useAuth } from '~~/src/features/auth'
-
-// WRONG — deep import bypassing public API
-import { useAuth } from '~~/src/features/auth/model/useAuth'
-```
 
 Nuxt auto-imports are acceptable **only** for:
 - Vue/Nuxt built-ins (`ref`, `computed`, `useFetch`, `useRoute`, `navigateTo`, etc.)
 - Global app-layer composables in `app/composables/`
-
----
-
-## TypeScript configuration
-
-Since `src/` lives outside the Nuxt `app/` directory, you must explicitly include it in the TypeScript config:
-
-```ts
-// nuxt.config.ts
-export default defineNuxtConfig({
-  typescript: {
-    tsConfig: {
-      include: ['../src/**/*'],
-    },
-    sharedTsConfig: {
-      include: ['../src/**/*'],
-    },
-    nodeTsConfig: {
-      include: ['../src/**/*'],
-    },
-  },
-})
-```
-
-This ensures all three Nuxt-generated tsconfigs (client, shared, server) include type-checking and auto-completion for FSD code in `src/`.
 
 ---
 
@@ -565,23 +452,6 @@ Everything in `app/` follows **Nuxt conventions**, not FSD. These files consume 
 
 ---
 
-## Shared layer structure
-
-The `shared` layer has **no slices** — only segments:
-
-```
-src/shared/
-  ui/               ← Generic UI components: buttons, modals, inputs, cards
-  lib/              ← Utility functions: formatDate, cn(), debounce
-  api/              ← API client setup, interceptors, base fetch wrapper
-  config/           ← App-wide constants, env helpers, route names
-  types/            ← Shared TypeScript utility types
-```
-
-Each segment can have its own `index.ts` for cleaner imports.
-
----
-
 ## Scaffolding a new slice
 
 ```
@@ -602,49 +472,7 @@ Only create segments you actually need. An entity with only types needs only `mo
 
 ## Common mistakes
 
-### 1. Putting FSD layers inside `app/`
-**Wrong**: `app/features/`, `app/entities/`, `app/widgets/`, `app/shared/`.
-**Right**: FSD layers live in `src/`. Only `app/pages/` (thin shells), `app/layouts/`, `app/plugins/`, `app/middleware/`, `app/composables/` go in `app/`.
-
-### 2. Fat page routes
-**Wrong**: Putting full page implementations in `app/pages/products/[id].vue` (200+ lines).
-**Right**: `app/pages/` files are thin routing shells (5–25 lines) that import from `src/pages/`.
-
-### 3. Premature extraction
-**Wrong**: Creating `src/features/fancy-button` because "it might be reused."
-**Right**: Keep in `src/pages/` until 3 actual usages prove the need.
-
-### 4. Wrong layer
-**Wrong**: Putting `useProductSearch` (standalone logic) in a widget.
-**Right**: Ask "can this logic work without THIS specific UI?" — yes means Feature.
-
-### 5. Missing public API
-**Wrong**: `import { x } from '~~/src/features/auth/model/internal'`
-**Right**: All exports go through `index.ts`.
-
-### 6. Upward imports
-**Wrong**: `src/entities/user` importing from `src/features/auth`.
-**Right**: Dependency flows only downward — entities never reference features.
-
-### 7. Same-layer cross-imports
-**Wrong**: `src/features/profile` importing from `src/features/auth`.
-**Right**: Extract shared concept to `entities/` or use events.
-
-### 8. Business logic in shared
-**Wrong**: `src/shared/lib/useAuth.ts`, `src/shared/lib/useProductSearch.ts`.
-**Right**: Shared is for generic utilities only — zero business logic.
-
-### 9. Relying on Nuxt auto-imports for FSD layers
-**Wrong**: Expecting `useAuth()` to auto-resolve from `src/features/auth/model/`.
-**Right**: Use explicit imports via `~~/src/features/auth` public API.
-
-### 10. Applying FSD outside `src/`
-**Wrong**: Organizing `app/composables/`, `app/middleware/`, or `server/` into FSD layers.
-**Right**: FSD lives exclusively in `src/`. Everything else (`app/`, `server/`) follows Nuxt conventions.
-
-### 11. Putting shared code in a slice group
-**Wrong**: `src/pages/(user-settings)/index.ts`, `ui/`, `model/`, or `_layout/` next to the page slices.
-**Right**: The group folder contains only page slices. Shared chrome is a widget (`src/widgets/user-settings-shell`). Isolated groups like `(blog)` have no chrome at all.
+Eleven mistakes that come up in review, each with the fix, are in [references/common-mistakes.md](references/common-mistakes.md). Read it when you review FSD code.
 
 ---
 
@@ -664,27 +492,3 @@ Before writing or reviewing code, verify:
 - [ ] Does `app/` only contain Nuxt runtime concerns (thin pages, layouts, plugins, middleware)?
 - [ ] If this is a `(group)/`, does it contain only page slices (no group-root `ui/` / `model/` / `index.ts` / `_layout/`)?
 - [ ] Does shared page chrome live in `src/widgets/*-shell`, imported via that widget's public API?
-
----
-
-## Migration strategy
-
-For existing Nuxt projects adopting FSD with `src/` root:
-
-| Code | Approach |
-|------|----------|
-| New modules | Always follow FSD in `src/` |
-| Existing `app/components/` | Migrate to `src/shared/ui/` or appropriate slice `ui/` segment |
-| Existing `app/composables/` | Classify into feature/entity `model/` in `src/` or keep in `app/composables/` if truly global |
-| Existing `app/utils/` | Move to `src/shared/lib/` |
-| Existing `app/stores/` | Move to entity/feature `model/` segments in `src/` |
-| Existing fat pages | Split into thin shell in `app/pages/` + page slice in `src/pages/` |
-
-Steps:
-1. Create `src/` directory with FSD layer subdirectories
-2. Add `typescript` includes (`tsConfig`, `sharedTsConfig`, `nodeTsConfig`) to `nuxt.config.ts`
-3. Start all new code in FSD structure under `src/`
-5. Migrate existing code slice-by-slice when touched
-6. Convert fat pages to thin routing shells + `src/pages/` slices
-7. Update imports to use `~~/src/` and public APIs
-8. Remove old directories once empty
