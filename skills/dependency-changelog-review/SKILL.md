@@ -41,26 +41,28 @@ If only the lockfile changed (lockfile maintenance, in-range updates), read the 
 
 | Depth | For |
 |---|---|
-| light | Patch bumps, `@types/*`, dev tooling whose changes do not touch our config. Up to five light bumps may share one reviewer. |
-| standard | Everything else. |
-| deep | Majors, `0.x` minors, pinned packages, the core stack, security-sensitive packages (auth, crypto, sanitising, HTTP clients), ranges of more than ten releases, packages without usable release notes. |
+| light | Patch bumps outside the core stack and security-sensitive packages, `@types/*` bumps, and dev tooling whose changes do not touch our config. Up to five light bumps may share one reviewer. |
+| standard | Patch bumps of the core stack or security-sensitive packages, and everything else not listed as light or deep. |
+| deep | Majors, `0.x` minors, non-patch bumps of the core stack or security-sensitive packages, pinned packages, ranges of more than ten releases, packages with an advisory or security fix in the range, and packages without usable release notes. |
 
-The core stack is the framework, router, UI library, build tool and TypeScript that the apps run on. When `AGENTS.md` or `CLAUDE.md` lists it, use that list.
+When a bump matches more than one row, pick the deepest one. The core stack is the framework, router, UI library, build tool and TypeScript that the apps run on; use the list in `AGENTS.md` or `CLAUDE.md` when one exists. Security-sensitive packages handle auth, crypto, sanitising or HTTP.
 
 ## 2. Spawn the reviewers
 
-Pick model and effort from the family you are running on:
+Pick the reviewer's model and effort (or thinking level, such as `thought_level` or `reasoning_effort`) from the family you run on:
 
 | You run on | light | standard | deep |
 |---|---|---|---|
-| Claude | Sonnet, `medium` | Sonnet, `high` | Opus, `xhigh` |
+| Claude | Sonnet, `low` | Sonnet, `high` | Opus, `xhigh` |
 | GPT | Sol, `low` | Sol, `medium` | Sol, `xhigh` |
-| Grok | flagship, `medium` | flagship, `high` | flagship, `xhigh` |
+| Grok | flagship, `low` | flagship, `high` | flagship, `xhigh` |
 | Gemini | Flash, `low` | Flash, `medium` | Pro, `high` |
-| anything else | mid tier, one effort level below default | mid tier, default effort | strongest tier, highest effort below `max` |
+| anything else | mid tier, lowest level above off | mid tier, default | strongest tier, highest level below `max` |
 
-- Take the newest version of that tier your subagent tool offers, under the exact identifier it accepts: an alias such as `sonnet`, a model ID, or a slug that includes the effort, such as `claude-sonnet-5-5-high`. Stay in your own family even when the tool offers others. A model the user names overrides the table.
-- When the model lacks that effort level, take the nearest one it supports. When the tool has no model or effort field, or rejects the value, spawn without it and let the reviewer inherit your settings.
+- Stay in your own family and generation (your model's version number, such as Claude 5.5 or Gemini 4), even when the tool offers other families or older generations. Skip any tier alias that resolves to an older generation.
+- When a tier from the table does not exist in your generation, pick the cheapest model of your generation that the tool offers for `light` and `standard` (or the strongest one for `deep`), or inherit your own model and pass the level from the table.
+- Use the exact identifier your subagent tool accepts: an alias, a model ID, or a slug that encodes the level (such as `claude-sonnet-5-5-low`). A model the user names overrides the table.
+- Map the level in the table to the parameter your tool uses (`effort`, `thought_level`, `reasoning_effort`, or a suffixed model slug). Give `light` reviewers the lowest sensible non-off level instead of leaving them at a higher parent default. When the model lacks that level, pick the nearest one it supports. When the tool has no model or level parameter, or rejects a value, omit only that parameter so the reviewer inherits it while keeping the other setting.
 - Use a general-purpose subagent type, because reviewers need a shell and network access for `git`, `npm` and `gh`.
 - Spawn all reviewers in one message so they run in parallel. If you can run only a few subagents at once, send the deep ones first and the rest in later batches.
 - If you cannot spawn subagents, review the packages yourself one at a time. Use the prompt below as your checklist and keep only the answer for each package.
@@ -68,18 +70,18 @@ Pick model and effort from the family you are running on:
 Fill in this prompt for each reviewer:
 
 ```text
-You review one dependency bump in <repo root>. Other agents review the other bumps, so review only yours.
+You review the dependency bump or bumps listed below in <repo root>. Other agents review the rest, so review only yours.
 
 Project: <one line from step 1: package manager, workspace layout, main frameworks>
 Base: <base>   Lockfile: <path>
 PACKAGE: `<name>` <old> → <new>   Depth: <light | standard | deep>
-<Notes from step 1: pin and its reason, peer partners and their bumps, release-train siblings. Re-verify them.>
+<Notes from step 1: pin and its reason, peer partners and their bumps, release-train siblings, or narrower-review scope. Re-verify them.>
 
 Read-only: edit nothing, install nothing, run no build, lint or typecheck. git diff/show/log, npm view, npm diff, gh/glab api, curl and `<package manager> why` are fine. If npm refuses to run inside the repo because of an engine check, run `npm view` and `npm diff` from a temp directory.
 
 1. Release notes. Read every version after <old> up to and including <new>. List them with `npm view <name> versions --json`, and skip prereleases unless <old> or <new> is one. Find the source with `npm view <name> repository --json`; in a monorepo, its `directory` field gives the package's folder. Fetch the notes in bulk with `gh api repos/<owner>/<repo>/releases --paginate --jq '.[] | "## \(.tag_name)\n\(.body)"'`, from the CHANGELOG.md at the <new> tag (the package's own in a monorepo), or from the published one at https://cdn.jsdelivr.net/npm/<name>@<new>/CHANGELOG.md. For a major, read the migration guide too. For the SDK of a hosted service (payments, auth, analytics, maps), also read the vendor's own changelog, because the package notes can leave out the API or script version the package now targets. For every breaking change, deprecation, changed default and fix, decide whether it affects how we use the package.
 2. Commits. Scan the commit subjects between the two tags with `gh api repos/<owner>/<repo>/compare/<old-tag>...<new-tag> --jq '.commits[].commit.message | split("\n")[0]'`. In a monorepo, page through `gh api 'repos/<owner>/<repo>/commits?sha=<new-tag>&path=<package dir>' --paginate` back to <old-tag> instead. This catches fixes the notes leave out, including security fixes merged as "Merge commit from fork". Then check what came after <new>: commit subjects from <new-tag> to `HEAD` and issues that mention <new> (`gh search issues --repo <owner>/<repo> "<new>"`) show regressions whose fix is not released yet. Open a diff only when a subject needs a closer look.
-3. Published code. For depth deep, or when the notes are thin, run `npm diff --diff=<name>@<old> --diff=<name>@<new> --diff-name-only`. Then run it again without `--diff-name-only` and pass the paths of the entry points and type declarations we use.
+3. Published code. For depth deep, when the notes are thin, or when the range contains a security fix or advisory, run `npm diff --diff=<name>@<old> --diff=<name>@<new> --diff-name-only`. Then run it again without `--diff-name-only` and pass the paths of the entry points and type declarations we use.
 4. Registry and advisories. `gh api 'advisories?ecosystem=npm&affects=<name>@<old>'` lists what the bump fixes, and the same query with <new> lists what stays open. An empty `[]` with exit code 0 means there are none. Check `npm view <name>@<new> deprecated`, and read the publish date of <new> from `npm view <name> time --json`.
 5. Our usage. Grep the repo for every way we use the package, skipping lockfiles, node_modules and build output. Look for static, dynamic, type-only and subpath imports, registrations in framework, build, lint and test configs, CSS imports, and CLI calls in scripts, CI and Dockerfiles. Auto-imported APIs appear by export name, not package name, so grep for those names too. For a hosted-service SDK, also find the same vendor's server-side SDK elsewhere in the repo, because its API version must match.
 6. Lockfile. Compare this package's entries at <base> (`git show <base>:<lockfile>`) and in the working tree, then follow its dependencies. Look for new or changed transitive packages, peer ranges we must satisfy (including optional peers that other packages declare on this one), duplicate copies and new install scripts. Grep for the names you find instead of reading the whole lockfile diff.
